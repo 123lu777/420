@@ -8,6 +8,7 @@ import models.MISCKernel_cuda as misckernel
 
 class LayerNorm2d(nn.Module):
     """PyTorch 1.8 兼容的 2D LayerNorm：在通道维做归一化。"""
+    # [2025 SOTA 升级]：风机叶片旋转先验与 VSS 模块
     def __init__(self, num_channels, eps=1e-6):
         super(LayerNorm2d, self).__init__()
         self.norm = nn.LayerNorm(num_channels, eps=eps)
@@ -22,6 +23,7 @@ class LayerNorm2d(nn.Module):
 
 class LightVSSBlock(nn.Module):
     """
+    # [2025 SOTA 升级]：风机叶片旋转先验与 VSS 模块
     轻量化 VSS 思想模块（纯 PyTorch 算子实现，兼容 1.8）：
     1) 先做 LayerNorm，提升状态更新稳定性；
     2) 用 1x1 Conv 做通道投影并门控分离（state / gate）；
@@ -63,6 +65,7 @@ class LightVSSBlock(nn.Module):
 
 class KinematicMotionHead(nn.Module):
     """
+    # [2025 SOTA 升级]：风机叶片旋转先验与 VSS 模块
     运动学旋转先验头：
     - 平移分支：预测全局线性平移 (tx, ty)
     - 旋转分支：预测角速度 omega 与旋转中心偏移 (cx_offset, cy_offset)
@@ -320,7 +323,7 @@ class MISCKernelNet(nn.Module):
         ])
 
         # 新增运动学先验头：在三尺度注入旋转先验流场
-        self.KinematicHeads = nn.ModuleList([
+        self.KinematicHeads = nn.ModuleList([  # [2025 SOTA 升级]：风机叶片旋转先验与 VSS 模块
             KinematicMotionHead(base_channel * 4, hidden_channels=max(16, base_channel // 2)),
             KinematicMotionHead(base_channel * 2, hidden_channels=max(16, base_channel // 2)),
             KinematicMotionHead(base_channel, hidden_channels=max(16, base_channel // 2)),
@@ -406,7 +409,7 @@ class MISCKernelNet(nn.Module):
         # ---------------- Scale 1/4：数据驱动 flow + 运动学旋转先验 ----------------
         s3_kernal_flow_data = self.KernelPredictFlow[0](z)
         s3_kernal_flow_prior = self.KinematicHeads[0](z)
-        s3_kernal_flow = s3_kernal_flow_data + s3_kernal_flow_prior
+        s3_kernal_flow = s3_kernal_flow_data + s3_kernal_flow_prior  # [2025 SOTA 升级]：风机叶片旋转先验与 VSS 模块
 
         s3_kernal_flowmask = self.KernelPredictFlowMask[0](z)
         s3_kernal_flowmask = self.sigmoid(s3_kernal_flowmask)
@@ -453,7 +456,7 @@ class MISCKernelNet(nn.Module):
         # ---------------- Scale 1/2：融合上一级 flow + 当前运动学先验 ----------------
         s2_kernal_flow_data = self.KernelPredictFlow[1](z) + self.flowup(s3_kernal_flow) * 2
         s2_kernal_flow_prior = self.KinematicHeads[1](z)
-        s2_kernal_flow = s2_kernal_flow_data + s2_kernal_flow_prior
+        s2_kernal_flow = s2_kernal_flow_data + s2_kernal_flow_prior  # [2025 SOTA 升级]：风机叶片旋转先验与 VSS 模块
 
         s2_kernal_flowmask = self.KernelPredictFlowMask[1](z)
         s2_kernal_flowmask = self.sigmoid(s2_kernal_flowmask)
@@ -501,7 +504,7 @@ class MISCKernelNet(nn.Module):
         # ---------------- Full Scale：融合上一级 flow + 当前运动学先验 ----------------
         s1_kernal_flow_data = self.KernelPredictFlow[2](z) + self.flowup(s2_kernal_flow) * 2
         s1_kernal_flow_prior = self.KinematicHeads[2](z)
-        s1_kernal_flow = s1_kernal_flow_data + s1_kernal_flow_prior
+        s1_kernal_flow = s1_kernal_flow_data + s1_kernal_flow_prior  # [2025 SOTA 升级]：风机叶片旋转先验与 VSS 模块
 
         s1_kernal_flowmask = self.KernelPredictFlowMask[2](z)
         s1_kernal_flowmask = self.sigmoid(s1_kernal_flowmask)

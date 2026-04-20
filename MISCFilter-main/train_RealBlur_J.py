@@ -15,7 +15,7 @@ import numpy as np
 
 import utils
 from data.data_RGB import get_training_data, get_validation_data
-from models.MISCFilterNet import MISCKernelNet as myNet
+from models.MISCFilterNet_WindTurbine import MISCKernelNet as myNet  # [2025 SOTA 升级]：风机叶片旋转先验与 VSS 模块
 from loss import losses
 from warmup_scheduler import GradualWarmupScheduler
 from tqdm import tqdm
@@ -44,6 +44,7 @@ parser.add_argument('--num_epochs', default=100, type=int, help='num_epochs')
 parser.add_argument('--batch_size', default=12, type=int, help='batch_size')
 parser.add_argument('--val_epochs', default=5, type=int, help='val_epochs')
 parser.add_argument('--print_epochs', default=2, type=int, help='val_epochs')
+parser.add_argument('--pretrain_weights', default='', type=str, help='Optional pretrained weights path; empty means train from scratch')  # [2025 SOTA 升级]：风机叶片旋转先验与 VSS 模块
 args = parser.parse_args()
 
 dataset = args.dataset
@@ -92,10 +93,9 @@ scheduler_cosine = optim.lr_scheduler.CosineAnnealingLR(optimizer, num_epochs-wa
 scheduler = GradualWarmupScheduler(optimizer, multiplier=1, total_epoch=warmup_epochs, after_scheduler=scheduler_cosine)
 
 RESUME = False
-Pretrain = False
-model_pre_dir = ''
+model_pre_dir = args.pretrain_weights.strip()  # [2025 SOTA 升级]：风机叶片旋转先验与 VSS 模块
 ######### Pretrain ###########
-if Pretrain:
+if model_pre_dir:
     utils.load_checkpoint(model_restoration, model_pre_dir)
 
     print('------------------------------------------------------------------------------')
@@ -164,6 +164,7 @@ for epoch in range(start_epoch, num_epochs + 1):
         loss_edge = criterion_edge(restored[0], target[0]) + criterion_edge(restored[1], target[1]) + criterion_edge(restored[2], target[2])
         loss = loss_char + 0.01 * loss_fft + 0.05 * loss_edge
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model_restoration.parameters(), max_norm=0.01)  # [2025 SOTA 升级]：风机叶片旋转先验与 VSS 模块
         optimizer.step()
         epoch_loss +=loss.item()
         iter += 1

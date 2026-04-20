@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 import utils
 from data.data_RGB import get_test_data
-from models.MISCFilterNet import MISCKernelNet as myNet
+from models.MISCFilterNet_WindTurbine import MISCKernelNet as myNet  # [2025 SOTA 升级]：风机叶片旋转先验与 VSS 模块
 from skimage import img_as_ubyte
 from tools.get_parameter_number import get_parameter_number
 from tqdm import tqdm
