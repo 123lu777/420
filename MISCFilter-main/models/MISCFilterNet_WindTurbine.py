@@ -73,8 +73,10 @@ class KinematicMotionHead(nn.Module):
 
     最终输出 平移场 + 旋转场，作为动态核/偏移预测的物理先验引导。
     """
-    def __init__(self, in_channels, hidden_channels=32):
+    def __init__(self, in_channels, hidden_channels=32, max_omega_prior=2.0):
         super(KinematicMotionHead, self).__init__()
+        # 最大角速度先验：用于限制训练初期的过大旋转流场，提升收敛稳定性
+        self.max_omega_prior = max_omega_prior
 
         # 平移分支：卷积提取后用全局池化得到每张图像的全局平移参数
         self.translation_branch = nn.Sequential(
@@ -112,7 +114,8 @@ class KinematicMotionHead(nn.Module):
         # 旋转参数（每张图一个全局旋转中心与角速度）
         rot = self.rotation_branch(feat)
         rot = self.pool(rot)      # [B, 3, 1, 1]
-        omega = rot[:, 0:1, :, :]
+        # 将角速度约束到有限物理范围，避免初始阶段 flow 爆炸导致不稳定
+        omega = torch.tanh(rot[:, 0:1, :, :]) * self.max_omega_prior
         cx_offset = rot[:, 1:2, :, :]
         cy_offset = rot[:, 2:3, :, :]
 
