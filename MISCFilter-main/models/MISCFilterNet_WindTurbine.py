@@ -72,6 +72,10 @@ class KinematicMotionHead(nn.Module):
       vy =  omega * (x - cx)
 
     最终输出 平移场 + 旋转场，作为动态核/偏移预测的物理先验引导。
+
+    参数说明：
+    - max_omega_prior：角速度先验上限，约束 tanh 后的 omega 取值范围到
+      [-max_omega_prior, max_omega_prior]，用于抑制训练初期过大旋转流场。
     """
     def __init__(self, in_channels, hidden_channels=32, max_omega_prior=2.0):
         super(KinematicMotionHead, self).__init__()
